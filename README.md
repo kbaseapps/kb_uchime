@@ -3,6 +3,6 @@
 # kb_uchime
 ---
 
-This module wraps the public domain version of UCHIME,
-available from:
-http://drive5.com/uchime/uchime_download.html
+This module wraps the free implementation of UCHIME
+available as part of vsearch
+https://github.com/torognes/vsearch
