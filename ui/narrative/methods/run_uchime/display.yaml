@@ -1,0 +1,64 @@
+#
+# define display information
+#
+name: UCHIME - Chimera detection and removal
+tooltip: |
+	Remove chimeric reads with UCHIME.
+screenshots: []
+
+icon: uchime-orange.png
+
+#
+# define a set of similar methods that might be useful to the user
+#
+suggestions:
+	apps:
+		related:
+			[]
+		next:
+			[]
+	methods:
+		related:
+			[]
+		next:
+			[annotate_contigset]
+
+#
+# Configure the display and description of parameters
+#
+parameters :
+	input_reads_name :
+		ui-name : |
+			Read library (or Set) object
+		short-hint : |
+			The read library or read library set to examine
+		long-hint  : |
+			The read library or read library set for which you want to trim.
+	output_reads_name :
+		ui-name : |
+			Output library (or Set) name
+		short-hint : |
+			Base name for output read library or read library set object
+		long-hint : |
+			Base name for output read library or read library set object
+
+description : |
+	<p>This is a Narrative Method for running <a href="http://drive5.com/usearch/manual/uchime_algo.html">UCHIME</a>.
+	UCHIME is public domain software for detecting chimeric sequences.
+	 </p>
+	 <br>
+	 We have packaged the version of UCHIME implemented in <a href="https://github.com/torognes/vsearch">VSEARCH</a> version 2.3.0.
+
+
+publications :
+    -
+        pmid: 21700674
+        display-text : |
+            'Edgar RC, Haas BJ, Clemente JC, Quince C, Knight R. (2011) UCHIME improves sensitivity and speed of chimera detection.  Bioinformatics. 2011 Aug 15;27(16):2194-200. doi: 10.1093/bioinformatics/btr381. Epub 2011 Jun 23.'
+        link: http://www.ncbi.nlm.nih.gov/pubmed/21700674
+    -
+        display-text : |
+            'Rognes T, Flouri T, Nichols B, Quince C, Mahé F. (2016) VSEARCH: a versatile open source tool for metagenomics. PeerJ 4:e2584 doi: 10.7717/peerj.2584'
+        link: https://peerj.com/articles/2584/
+
+
