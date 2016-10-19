@@ -20,6 +20,7 @@ import us.kbase.workspace.ObjectIdentity;
 
 import setapi.*;
 import kbasereport.*;
+import readsutils.*;
 
 import com.fasterxml.jackson.databind.*;
 
@@ -88,6 +89,7 @@ public class KbUchimeImpl {
                                             RunUchimeInput input) throws Exception {
 
         WorkspaceClient wc = createWsClient(wsURL,token);
+        ReadsUtilsClient ruc = new ReadsUtilsClient(token);
 
         String readsRef = input.getInputReadsName();
         if (readsRef.indexOf("/") == -1)
@@ -124,13 +126,73 @@ public class KbUchimeImpl {
         // start generating report
         String reportText = "";
         List<WorkspaceObject> objects = new ArrayList<WorkspaceObject>();
+        List<String> warnings = null;
         for (int i=0; i<readsRefs.size(); i++) {
             readsRef = readsRefs.get(i);
             String readsName = readsNames.get(i);
             String outputReadsName = outputReadsNames.get(i);
 
-            reportText += "Running UCHIME on "+readsName+" ("+readsName+")\n";
+            reportText += "Running UCHIME on "+readsName+" ("+readsRef+")\n";
 
+            // download reads
+            DownloadReadsOutput dro = ruc.downloadReads(new DownloadReadsParams()
+                                                        .withReadLibraries(Arrays.asList(readsRef)));
+            for (DownloadedReadLibrary drl : dro.getFiles().values()) {
+                ReadsFiles rf = drl.getFiles();
+                java.io.File f;
+                String fwdPath = rf.getFwd();
+                if (rf.getRev()!=null) {
+                    reportText += "\nWARNING: UCHIME doesn't work on paired end reads.\n";
+                    if (warnings == null)
+                        warnings = new ArrayList<String>();
+                    warnings.add("WARNING: UCHIME doesn't work on paired end reads.");
+                    f = new java.io.File(rf.getRev());
+                    f.delete();
+                }
+
+                // write outputs to temp files
+                java.io.File outputFileFA = java.io.File.createTempFile("reads", ".fa", tempDir);
+                outputFileFA.delete();
+                java.io.File outputFileLog = java.io.File.createTempFile("log", ".txt", tempDir);
+                outputFileLog.delete();
+                
+
+                // run UCHIME
+                ProcessBuilder pb =
+                    new ProcessBuilder("/kb/module/dependencies/bindependencies/bin/vsearch",
+                                       "--uchime_denovo",
+                                       fwdPath,
+                                       "--nonchimeras",
+                                       outputFileFA.getPath());
+                pb.redirectErrorStream(true);
+                pb.redirectOutput(Redirect.to(outputFileLog));
+                pb.start().waitFor();
+
+                // grab output into report
+                List<String> lines = Files.readAllLines(Paths.get(outputFileLog.getPath()), Charset.defaultCharset());
+                for (String line : lines) {
+                    // should check for errors here
+                    reportText += line+"\n";
+                }
+
+                // upload reads
+                UploadReadsOutput uro = ruc.uploadReads(new UploadReadsParams()
+                                                        .withFwdFile(outputFileFA.getPath())
+                                                        .withSequencingTech(drl.getSequencingTech())
+                                                        .withWsname(input.getWs())
+                                                        .withName(outputReadsName));
+                objects.add(new WorkspaceObject()
+                            .withRef(uro.getObjRef())
+                            .withDescription("UCHIME-filtered reads"));
+
+                // clean up
+                f = new java.io.File(fwdPath);
+                f.delete();
+                outputFileFA.delete();
+                outputFileLog.delete();
+                
+                reportText += "Done with "+readsName+".\n\n";
+            }
             
         }
 
@@ -138,7 +200,7 @@ public class KbUchimeImpl {
         String[] report = makeReport(token,
                                      input.getWs(),
                                      reportText,
-                                     null,
+                                     warnings,
                                      objects);
         RunUchimeOutput rv = new RunUchimeOutput()
             .withReportName(report[0])
