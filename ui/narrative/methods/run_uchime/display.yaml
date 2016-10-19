@@ -48,7 +48,8 @@ description : |
 	 </p>
 	 <br>
 	 We have packaged the version of UCHIME implemented in <a href="https://github.com/torognes/vsearch">VSEARCH</a> version 2.3.0.
-
+	 <br>
+	 UCHIME does not recognize paired reads, so you will need to merge paired reads before running chimera detection.  This method works on single end reads or a read set.
 
 publications :
     -
