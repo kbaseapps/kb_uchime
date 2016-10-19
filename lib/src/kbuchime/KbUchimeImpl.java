@@ -18,6 +18,8 @@ import us.kbase.common.utils.CorrectProcess;
 import us.kbase.workspace.ObjectData;
 import us.kbase.workspace.ObjectIdentity;
 
+import setapi.*;
+
 import com.fasterxml.jackson.databind.*;
 
 import static java.lang.ProcessBuilder.Redirect;
@@ -30,11 +32,81 @@ public class KbUchimeImpl {
     protected static File tempDir = new File("/kb/module/work/");
 
     /**
+       creates a workspace client; if token is null, client can
+       only read public workspaces.
+    */
+    public static WorkspaceClient createWsClient(String wsURL,
+                                                 AuthToken token) throws Exception {
+        WorkspaceClient rv = null;
+
+        if (token==null)
+            rv = new WorkspaceClient(new URL(wsURL));
+        else
+            rv = new WorkspaceClient(new URL(wsURL),token);
+        rv.setAuthAllowedForHttp(true);
+        return rv;
+    }
+
+    /**
+       look up the type of an object
+    */
+    public static String lookupWsType(WorkspaceClient wc,
+                                      String ref) throws Exception {
+        
+        return wc.getObjectInfoNew(new GetObjectInfoNewParams()
+                                   .withObjects(Arrays.asList(new ObjectIdentity().withRef(ref)))).get(0).getE3();
+    }
+
+    /**
        Runs UCHIME on a single read set
     */
     public static RunUchimeOutput runUchime(String wsURL,
                                             AuthToken token,
                                             RunUchimeInput input) throws Exception {
+
+        WorkspaceClient wc = createWsClient(wsURL,token);
+
+        String readsRef = input.getInputReadsName();
+        if (readsRef.indexOf("/") == -1)
+            readsRef = input.getWs()+"/"+readsRef;
+
+        // figure out what type of reads we have
+        String readsType = lookupWsType(wc, readsRef);
+        System.out.println("Reads type is "+readsType);
+
+        // list of reads to work on        
+        ArrayList<String> readsRefs = new ArrayList<String>();
+        // and input names
+        ArrayList<String> readsNames = new ArrayList<String>();
+        // and output names
+        ArrayList<String> outputReadsNames = new ArrayList<String>();
+
+        // if a set, get list of members
+        if (readsType.equals("KBaseSets.ReadsSet")) {
+            SetAPIClient sc = new SetAPIClient(token);
+            GetReadsSetV1Result readSetObj = sc.getReadsSetV1(new GetReadsSetV1Params().withRef(readsRef).withIncludeItemInfo(1L));
+            for (ReadsSetItem rsi : readSetObj.getData().getItems()) {
+                readsRefs.add(rsi.getRef());
+                readsNames.add(rsi.getInfo().getE2());
+                outputReadsNames.add(rsi.getInfo().getE2()+"_uchime");
+            }
+        }
+        else {
+            // single reads object, not a set
+            readsRefs.add(readsRef);
+            readsNames.add(input.getInputReadsName());
+            outputReadsNames.add(input.getOutputReadsName());
+        }
+
+        String reportText = "";
+        for (int i=0; i<readsRefs.size(); i++) {
+            readsRef = readsRefs.get(i);
+            String readsName = readsNames.get(i);
+            String outputReadsName = outputReadsNames.get(i);
+
+            reportText += "Running UCHIME on "+readsName+" ("+readsName+")\n";
+        }
+        
         String[] report = new String[2];
         RunUchimeOutput rv = new RunUchimeOutput()
             .withReportName(report[0])
