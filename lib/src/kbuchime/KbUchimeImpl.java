@@ -19,6 +19,7 @@ import us.kbase.workspace.ObjectData;
 import us.kbase.workspace.ObjectIdentity;
 
 import setapi.*;
+import kbasereport.*;
 
 import com.fasterxml.jackson.databind.*;
 
@@ -29,7 +30,7 @@ import static java.lang.ProcessBuilder.Redirect;
    or set of reads
 */
 public class KbUchimeImpl {
-    protected static File tempDir = new File("/kb/module/work/");
+    protected static java.io.File tempDir = new java.io.File("/kb/module/work/");
 
     /**
        creates a workspace client; if token is null, client can
@@ -56,6 +57,28 @@ public class KbUchimeImpl {
         return wc.getObjectInfoNew(new GetObjectInfoNewParams()
                                    .withObjects(Arrays.asList(new ObjectIdentity().withRef(ref)))).get(0).getE3();
     }
+
+    /**
+       Make and save Report object, returning its name and reference
+    */
+    public static String[] makeReport(AuthToken token,
+                                      String ws,
+                                      String reportText,
+                                      List<String> warnings,
+                                      List<WorkspaceObject> objects) throws Exception {
+        Report report = new Report()
+            .withTextMessage(reportText)
+            .withWarnings(warnings)
+            .withObjectsCreated(objects);
+
+        KBaseReportClient rc = new KBaseReportClient(token);
+        ReportInfo ri = rc.create(new CreateParams()
+                                  .withReport(report)
+                                  .withWorkspaceName(ws));
+        
+        return new String[] { ri.getName(), ri.getRef() };
+    }
+    
 
     /**
        Runs UCHIME on a single read set
@@ -98,16 +121,25 @@ public class KbUchimeImpl {
             outputReadsNames.add(input.getOutputReadsName());
         }
 
+        // start generating report
         String reportText = "";
+        List<WorkspaceObject> objects = new ArrayList<WorkspaceObject>();
         for (int i=0; i<readsRefs.size(); i++) {
             readsRef = readsRefs.get(i);
             String readsName = readsNames.get(i);
             String outputReadsName = outputReadsNames.get(i);
 
             reportText += "Running UCHIME on "+readsName+" ("+readsName+")\n";
+
+            
         }
+
         
-        String[] report = new String[2];
+        String[] report = makeReport(token,
+                                     input.getWs(),
+                                     reportText,
+                                     null,
+                                     objects);
         RunUchimeOutput rv = new RunUchimeOutput()
             .withReportName(report[0])
             .withReportRef(report[1]);
