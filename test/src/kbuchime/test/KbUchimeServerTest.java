@@ -14,17 +14,16 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import kbuchime.KbUchimeServer;
+import kbuchime.*;
+import us.kbase.kbasereport.*;
 import us.kbase.auth.AuthToken;
 import us.kbase.common.service.JsonServerSyslog;
 import us.kbase.common.service.RpcContext;
 import us.kbase.common.service.UObject;
-import us.kbase.workspace.CreateWorkspaceParams;
-import us.kbase.workspace.ObjectSaveData;
-import us.kbase.workspace.ProvenanceAction;
-import us.kbase.workspace.SaveObjectsParams;
-import us.kbase.workspace.WorkspaceClient;
-import us.kbase.workspace.WorkspaceIdentity;
+import us.kbase.workspace.*;
+
+import us.kbase.common.service.RpcContext;
+
 
 public class KbUchimeServerTest {
     private static AuthToken token = null;
@@ -76,16 +75,17 @@ public class KbUchimeServerTest {
     }
     
     @Test
-    public void testYourMethod() throws Exception {
-        // Prepare test objects in workspace if needed using 
-        // wsClient.saveObjects(new SaveObjectsParams().withWorkspace(getWsName()).withObjects(Arrays.asList(
-        //         new ObjectSaveData().withType("SomeModule.SomeType").withName(objName).withData(new UObject(obj)))));
-        //
-        // Run your method by
-        // YourRetType ret = impl.yourMethod(params, token);
-        //
-        // Check returned data with
-        // Assert.assertEquals(..., ret.getSomeProperty());
-        // ... or other JUnit methods.
+    public void testRunUchime() throws Exception {
+        RunUchimeInput input = new RunUchimeInput()
+            .withWs("jmc:1449699355207")
+            .withInputReadsName("GBVT06H_reads")
+            .withOutputReadsName("test_uchime_output");
+        RunUchimeOutput rv = impl.runUchime(input, token, (RpcContext)null);
+        Assert.assertNotNull(rv);
+        String reportRef = rv.getReportRef();
+        Assert.assertNotNull(reportRef);
+        Report report = wsClient.getObjects(Arrays.asList(new ObjectIdentity().withRef(reportRef))).get(0).getData().asClassInstance(us.kbase.kbasereport.Report.class);
+        Assert.assertNotNull(report);
+        System.out.println(report.getTextMessage());
     }
 }

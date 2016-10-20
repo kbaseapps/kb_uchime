@@ -85,11 +85,12 @@ public class KbUchimeImpl {
        Runs UCHIME on a single read set
     */
     public static RunUchimeOutput runUchime(String wsURL,
+                                            String serviceWizardURL,
                                             AuthToken token,
                                             RunUchimeInput input) throws Exception {
 
         WorkspaceClient wc = createWsClient(wsURL,token);
-        ReadsUtilsClient ruc = new ReadsUtilsClient(token);
+        ReadsUtilsClient ruc = new ReadsUtilsClient(new URL(System.getenv("SDK_CALLBACK_URL")),token);
 
         String readsRef = input.getInputReadsName();
         if (readsRef.indexOf("/") == -1)
@@ -108,7 +109,7 @@ public class KbUchimeImpl {
 
         // if a set, get list of members
         if (readsType.equals("KBaseSets.ReadsSet")) {
-            SetAPIClient sc = new SetAPIClient(token);
+            SetAPIClient sc = new SetAPIClient(new URL(serviceWizardURL),token);
             GetReadsSetV1Result readSetObj = sc.getReadsSetV1(new GetReadsSetV1Params().withRef(readsRef).withIncludeItemInfo(1L));
             for (ReadsSetItem rsi : readSetObj.getData().getItems()) {
                 readsRefs.add(rsi.getRef());
@@ -159,7 +160,7 @@ public class KbUchimeImpl {
 
                 // run UCHIME
                 ProcessBuilder pb =
-                    new ProcessBuilder("/kb/module/dependencies/bindependencies/bin/vsearch",
+                    new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
                                        "--uchime_denovo",
                                        fwdPath,
                                        "--nonchimeras",

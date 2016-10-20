@@ -35,16 +35,18 @@ public class KbUchimeServer extends JsonServerServlet {
     private static final long serialVersionUID = 1L;
     private static final String version = "0.0.1";
     private static final String gitUrl = "git@github.com:kbaseapps/kb_uchime.git";
-    private static final String gitCommitHash = "22f0b91a4b3b969cbc92bcd02a9237e1c19a1d77";
+    private static final String gitCommitHash = "8aa19650ca38648aa376eb6a7142b61b77e3bf08";
 
     //BEGIN_CLASS_HEADER
     private final String wsUrl;
+    private final String serviceWizardUrl;
     //END_CLASS_HEADER
 
     public KbUchimeServer() throws Exception {
         super("kb_uchime");
         //BEGIN_CONSTRUCTOR
         wsUrl = config.get("workspace-url");
+        serviceWizardUrl = config.get("service-wizard-url");
         //END_CONSTRUCTOR
     }
 
@@ -59,7 +61,7 @@ public class KbUchimeServer extends JsonServerServlet {
     public RunUchimeOutput runUchime(RunUchimeInput input, AuthToken authPart, RpcContext jsonRpcContext) throws Exception {
         RunUchimeOutput returnVal = null;
         //BEGIN run_uchime
-        returnVal = KbUchimeImpl.runUchime(wsUrl,authPart,input);
+        returnVal = KbUchimeImpl.runUchime(wsUrl,serviceWizardUrl,authPart,input);
         //END run_uchime
         return returnVal;
     }
