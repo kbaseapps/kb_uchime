@@ -91,6 +91,7 @@ public class KbUchimeImpl {
 
         WorkspaceClient wc = createWsClient(wsURL,token);
         ReadsUtilsClient ruc = new ReadsUtilsClient(new URL(System.getenv("SDK_CALLBACK_URL")),token);
+        ruc.setIsInsecureHttpConnectionAllowed(true);
 
         String readsRef = input.getInputReadsName();
         if (readsRef.indexOf("/") == -1)
@@ -110,6 +111,8 @@ public class KbUchimeImpl {
         // if a set, get list of members
         if (readsType.equals("KBaseSets.ReadsSet")) {
             SetAPIClient sc = new SetAPIClient(new URL(serviceWizardURL),token);
+            sc.setIsInsecureHttpConnectionAllowed(true);
+            
             GetReadsSetV1Result readSetObj = sc.getReadsSetV1(new GetReadsSetV1Params().withRef(readsRef).withIncludeItemInfo(1L));
             for (ReadsSetItem rsi : readSetObj.getData().getItems()) {
                 readsRefs.add(rsi.getRef());
