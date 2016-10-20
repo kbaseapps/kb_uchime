@@ -72,7 +72,8 @@ public class KbUchimeImpl {
             .withWarnings(warnings)
             .withObjectsCreated(objects);
 
-        KBaseReportClient rc = new KBaseReportClient(token);
+        KBaseReportClient rc = new KBaseReportClient(new URL(System.getenv("SDK_CALLBACK_URL")),token);
+        rc.setIsInsecureHttpConnectionAllowed(true);
         ReportInfo ri = rc.create(new CreateParams()
                                   .withReport(report)
                                   .withWorkspaceName(ws));
@@ -82,7 +83,7 @@ public class KbUchimeImpl {
     
 
     /**
-       Runs UCHIME on a single read set
+       Runs UCHIME on a single reads library or set.
     */
     public static RunUchimeOutput runUchime(String wsURL,
                                             String serviceWizardURL,
@@ -121,7 +122,7 @@ public class KbUchimeImpl {
             }
         }
         else {
-            // single reads object, not a set
+            // process a single reads object, not a set
             readsRefs.add(readsRef);
             readsNames.add(input.getInputReadsName());
             outputReadsNames.add(input.getOutputReadsName());
@@ -131,6 +132,8 @@ public class KbUchimeImpl {
         String reportText = "";
         List<WorkspaceObject> objects = new ArrayList<WorkspaceObject>();
         List<String> warnings = null;
+
+        // run UCHIME on each library
         for (int i=0; i<readsRefs.size(); i++) {
             readsRef = readsRefs.get(i);
             String readsName = readsNames.get(i);
@@ -179,10 +182,16 @@ public class KbUchimeImpl {
                     reportText += line+"\n";
                 }
 
+                // hack to fix missing sequencing tech,
+                // which is now mandatory but missing in some existing objects
+                String seqTech = drl.getSequencingTech();
+                if (seqTech==null)
+                    seqTech = "Unknown";
+
                 // upload reads
                 UploadReadsOutput uro = ruc.uploadReads(new UploadReadsParams()
                                                         .withFwdFile(outputFileFA.getPath())
-                                                        .withSequencingTech(drl.getSequencingTech())
+                                                        .withSequencingTech(seqTech)
                                                         .withWsname(input.getWs())
                                                         .withName(outputReadsName));
                 objects.add(new WorkspaceObject()
