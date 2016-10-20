@@ -7,6 +7,12 @@ MAINTAINER John-Marc Chandonia
 
 # RUN apt-get update
 
+RUN apt-get update
+RUN apt-get upgrade --yes
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test --yes
+RUN apt-get update
+RUN apt-get install libstdc++6 --yes
+
 WORKDIR /kb/module
 RUN mkdir -p /kb/module/dependencies/bin
 
