@@ -31,7 +31,7 @@ import static java.lang.ProcessBuilder.Redirect;
    or set of reads
 */
 public class KbUchimeImpl {
-    protected static java.io.File tempDir = new java.io.File("/kb/module/work/");
+    protected static java.io.File tempDir = new java.io.File("/kb/module/work/tmp/");
 
     /**
        creates a workspace client; if token is null, client can
@@ -148,21 +148,35 @@ public class KbUchimeImpl {
                 ReadsFiles rf = drl.getFiles();
                 java.io.File f;
                 String fwdPath = rf.getFwd();
-                if (rf.getRev()!=null) {
-                    reportText += "\nWARNING: UCHIME doesn't work on paired end reads.\n";
+                String revPath = rf.getRev();
+                if (fwdPath != null) {
+                    f = new java.io.File(fwdPath);
+                    if ((f==null) || (f.length() == 0L)) {
+                        reportText += "\nERROR: "+readsName+" did not load correctly or may have no reads\n";
+                        if (warnings == null)
+                            warnings = new ArrayList<String>();
+                        warnings.add("ERROR: "+readsName+" did not load correctly or may have no reads");
+                        continue;
+                    }
+                }
+                if (revPath!=null) {
+                    reportText += "\nWARNING: UCHIME doesn't work on paired end reads; they must be merged first.\n";
                     if (warnings == null)
                         warnings = new ArrayList<String>();
-                    warnings.add("WARNING: UCHIME doesn't work on paired end reads.");
-                    f = new java.io.File(rf.getRev());
+                    warnings.add("WARNING: UCHIME doesn't work on paired end reads; they must be merged first.");
+                    f = new java.io.File(revPath);
                     f.delete();
                 }
 
                 // write outputs to temp files
                 java.io.File outputFileFA = java.io.File.createTempFile("reads", ".fa", tempDir);
-                outputFileFA.delete();
+                java.io.File outputFileHead = java.io.File.createTempFile("reads", ".txt", tempDir);
+                java.io.File outputFileFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
                 java.io.File outputFileLog = java.io.File.createTempFile("log", ".txt", tempDir);
+                outputFileFA.delete();
+                outputFileHead.delete();
+                outputFileFQ.delete();
                 outputFileLog.delete();
-                
 
                 // run UCHIME
                 ProcessBuilder pb =
@@ -182,26 +196,55 @@ public class KbUchimeImpl {
                     reportText += line+"\n";
                 }
 
-                // hack to fix missing sequencing tech,
-                // which is now mandatory but missing in some existing objects
-                String seqTech = drl.getSequencingTech();
-                if (seqTech==null)
-                    seqTech = "Unknown";
+                // check that output actually generated
+                long fileSize = outputFileFA.length();
+                if (fileSize == 0L) {
+                    reportText += "\nERROR: UCHIME did not generate any output.\n";
+                    if (warnings == null)
+                        warnings = new ArrayList<String>();
+                    warnings.add("ERROR: UCHIME did not generate any output.");
+                }
+                else {
+                    // get headers from fasta file
+                    pb = new ProcessBuilder("/bin/sh",
+                                            "-c",
+                                            "grep -e '^>' "+outputFileFA.getPath()+" | cut -c 2-");
+                    pb.redirectOutput(Redirect.to(outputFileHead));
+                    pb.start().waitFor();
 
-                // upload reads
-                UploadReadsOutput uro = ruc.uploadReads(new UploadReadsParams()
-                                                        .withFwdFile(outputFileFA.getPath())
-                                                        .withSequencingTech(seqTech)
-                                                        .withWsname(input.getWs())
-                                                        .withName(outputReadsName));
-                objects.add(new WorkspaceObject()
-                            .withRef(uro.getObjRef())
-                            .withDescription("UCHIME-filtered reads"));
+                    // extract subset of original fastq file
+                    pb = new ProcessBuilder("seqtk",
+                                            "subseq",
+                                            fwdPath,
+                                            outputFileHead.getPath());
+                    pb.redirectOutput(Redirect.to(outputFileFQ));
+                    pb.start().waitFor();
+                    
+                    // save the output 
+
+                    // hack to fix missing sequencing tech,
+                    // which is now mandatory but missing in some existing objects
+                    String seqTech = drl.getSequencingTech();
+                    if (seqTech==null)
+                        seqTech = "Unknown";
+
+                    // upload reads
+                    UploadReadsOutput uro = ruc.uploadReads(new UploadReadsParams()
+                                                            .withFwdFile(outputFileFQ.getPath())
+                                                            .withSequencingTech(seqTech)
+                                                            .withWsname(input.getWs())
+                                                            .withName(outputReadsName));
+                    objects.add(new WorkspaceObject()
+                                .withRef(uro.getObjRef())
+                                .withDescription("UCHIME-filtered reads"));
+                }
 
                 // clean up
                 f = new java.io.File(fwdPath);
                 f.delete();
                 outputFileFA.delete();
+                outputFileHead.delete();
+                outputFileFQ.delete();
                 outputFileLog.delete();
                 
                 reportText += "Done with "+readsName+".\n\n";

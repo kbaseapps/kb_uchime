@@ -77,9 +77,9 @@ public class KbUchimeServerTest {
     @Test
     public void testRunUchime() throws Exception {
         RunUchimeInput input = new RunUchimeInput()
-            .withWs("jmc:1449699355207")
-            .withInputReadsName("GBVT06H_reads")
-            .withOutputReadsName("test_uchime_output");
+            .withWs("jmc:1477003527922")
+            .withInputReadsName("GBVT06H_sample")
+            .withOutputReadsName("GBVT06H_uchime_filtered");
         RunUchimeOutput rv = impl.runUchime(input, token, (RpcContext)null);
         Assert.assertNotNull(rv);
         String reportRef = rv.getReportRef();
