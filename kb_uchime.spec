@@ -7,6 +7,7 @@ module kb_uchime {
 	string ws;
 	string input_reads_name; /* may be ReadSet or SingleEndLibrary */
 	string output_reads_name;
+	string program_name; /* must be UCHIME or VSEARCH */
     } RunUchimeInput;
 
     typedef structure {

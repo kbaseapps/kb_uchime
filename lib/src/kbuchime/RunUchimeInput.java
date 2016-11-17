@@ -21,7 +21,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({
     "ws",
     "input_reads_name",
-    "output_reads_name"
+    "output_reads_name",
+    "program_name"
 })
 public class RunUchimeInput {
 
@@ -31,6 +32,8 @@ public class RunUchimeInput {
     private String inputReadsName;
     @JsonProperty("output_reads_name")
     private String outputReadsName;
+    @JsonProperty("program_name")
+    private String programName;
     private Map<String, Object> additionalProperties = new HashMap<String, Object>();
 
     @JsonProperty("ws")
@@ -78,6 +81,21 @@ public class RunUchimeInput {
         return this;
     }
 
+    @JsonProperty("program_name")
+    public String getProgramName() {
+        return programName;
+    }
+
+    @JsonProperty("program_name")
+    public void setProgramName(String programName) {
+        this.programName = programName;
+    }
+
+    public RunUchimeInput withProgramName(String programName) {
+        this.programName = programName;
+        return this;
+    }
+
     @JsonAnyGetter
     public Map<String, Object> getAdditionalProperties() {
         return this.additionalProperties;
@@ -90,7 +108,7 @@ public class RunUchimeInput {
 
     @Override
     public String toString() {
-        return ((((((((("RunUchimeInput"+" [ws=")+ ws)+", inputReadsName=")+ inputReadsName)+", outputReadsName=")+ outputReadsName)+", additionalProperties=")+ additionalProperties)+"]");
+        return ((((((((((("RunUchimeInput"+" [ws=")+ ws)+", inputReadsName=")+ inputReadsName)+", outputReadsName=")+ outputReadsName)+", programName=")+ programName)+", additionalProperties=")+ additionalProperties)+"]");
     }
 
 }

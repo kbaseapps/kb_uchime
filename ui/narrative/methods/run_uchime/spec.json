@@ -1,73 +1,97 @@
 {
-	"ver": "0.0.1",
-	
-	"authors": [
-		"jmc"
-	],
-	"contact": "help@kbase.us",
-	"visible": true,
-	"categories": ["active", "reads"],
-	"widgets": {
-		"input": null,
-		"output": "kbaseReportView"
+    "ver": "0.0.1",
+    
+    "authors": [
+	"jmc"
+    ],
+    "contact": "help@kbase.us",
+    "visible": true,
+    "categories": ["active", "reads"],
+    "widgets": {
+	"input": null,
+	"output": "kbaseReportView"
+    },
+    "parameters": [
+	{
+	    "id": "input_reads_name",
+	    "optional": false,
+	    "advanced": false,
+	    "allow_multiple": false,
+	    "default_values": [ "" ],
+	    "field_type": "text",
+	    "text_options": {
+		"valid_ws_types": ["KBaseSets.ReadsSet", "KBaseAssembly.SingleEndLibrary", "KBaseFile.SingleEndLibrary"]
+	    }
 	},
-	"parameters": [
+	{
+	    "id": "output_reads_name",
+	    "is_output_name": true,
+	    "optional": false,
+	    "advanced": false,
+	    "allow_multiple": false,
+	    "default_values": [ "" ],
+	    "field_type": "text"
+	},
+	{
+	    "id": "program_name",
+	    "optional": false,
+	    "advanced": false,
+	    "allow_multiple": false,
+	    "default_values": [ "VSEARCH" ],
+	    "field_type": "dropdown",
+	    "dropdown_options":{
+                "options": [
+                    {
+                        "value": "VSEARCH",
+                        "display": "VSEARCH implementation of UCHIME"
+                    },
+                    {
+                        "value": "UCHIME",
+                        "display": "public domain version of UCHIME"
+                    }
+		]
+	    }
+	}
+    ],
+    "behavior": {
+	"service-mapping": {
+	    "url": "",
+	    "name": "kb_uchime",
+	    "method": "run_uchime",
+	    "input_mapping": [
 		{
-			"id": "input_reads_name",
-			"optional": false,
-			"advanced": false,
-			"allow_multiple": false,
-			"default_values": [ "" ],
-			"field_type": "text",
-			"text_options": {
-				"valid_ws_types": ["KBaseSets.ReadsSet", "KBaseAssembly.SingleEndLibrary", "KBaseFile.SingleEndLibrary"]
-			}
+		    "narrative_system_variable": "workspace",
+		    "target_property": "ws"
 		},
 		{
-			"id": "output_reads_name",
-			"is_output_name": true,
-			"optional": false,
-			"advanced": false,
-			"allow_multiple": false,
-			"default_values": [ "" ],
-			"field_type": "text"
+		    "input_parameter": "input_reads_name",
+		    "target_property": "input_reads_name"
+		},
+		{
+		    "input_parameter": "output_reads_name",
+		    "target_property": "output_reads_name"
+		},
+		{
+		    "input_parameter": "program_name",
+		    "target_property": "program_name"
 		}
-	],
-	"behavior": {
-		"service-mapping": {
-			"url": "",
-			"name": "kb_uchime",
-			"method": "run_uchime",
-			"input_mapping": [
-				{
-					"narrative_system_variable": "workspace",
-					"target_property": "ws"
-				},
-				{
-					"input_parameter": "input_reads_name",
-					"target_property": "input_reads_name"
-				},
-				{
-					"input_parameter": "output_reads_name",
-					"target_property": "output_reads_name"
-				}
 
-			],
-			"output_mapping": [
-				{
-					"service_method_output_path": [0, "report_name"],
-					"target_property": "report_name"
-				},
-				{
-					"service_method_output_path": [0, "report_ref"],
-					"target_property": "report_ref"
-				},
-				{
-					"narrative_system_variable": "workspace",
-					"target_property": "workspace_name"
-				}
-			]
+	    ],
+	    "output_mapping": [
+		{
+		    "service_method_output_path": [0, "report_name"],
+		    "target_property": "report_name"
+		},
+		{
+		    "service_method_output_path": [0, "report_ref"],
+		    "target_property": "report_ref"
+		},
+		{
+		    "narrative_system_variable": "workspace",
+		    "target_property": "workspace_name"
 		}
-	},
-	"job_id_output_field": "docker"
+	    ]
+	}
+    },
+    "job_id_output_field": "docker"
 }

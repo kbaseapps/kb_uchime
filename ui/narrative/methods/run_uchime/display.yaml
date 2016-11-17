@@ -41,15 +41,24 @@ parameters :
 			Base name for output read library or read library set object
 		long-hint : |
 			Base name for output read library or read library set object
+	program_name :
+		ui-name : |
+			Program name (UCHIME or VSEARCH)
+		short-hint : |
+			Implementation of UCHIME to use; can be either public domain UCHIME or VSEARCH
+		long-hint : |
+			Implementation of UCHIME to use; can be	either public domain version of UCHIME (version 4.2.40) or the reimplemented version in VSEARCH (version 2.3.0)
 
 description : |
 	<p>This is a Narrative Method for running <a href="http://drive5.com/usearch/manual/uchime_algo.html">UCHIME</a>.
 	UCHIME is public domain software for detecting chimeric sequences.
 	 </p>
 	 <br>
-	 We have packaged the version of UCHIME implemented in <a href="https://github.com/torognes/vsearch">VSEARCH</a> version 2.3.0.
+	 We have packaged both the latest public domain version of UCHIME (4.2.40) and also the reimplemented version of UCHIME that's part of <a href="https://github.com/torognes/vsearch">VSEARCH</a> version 2.3.0.
 	 <br>
 	 UCHIME does not recognize paired reads, so you will need to merge paired reads before running chimera detection.  This method works on single end reads or a read set.
+	 <br>
+	 In both programs, we run the <i>de novo</i> chimera detection algorithm.  This requires that your reads file include abundance data, which must be given by a string ;size=xxx; somewhere in the label.  If this string is not present, your reads will be de-replicated and the abundance of each sequence calculated for you.
 
 publications :
     -

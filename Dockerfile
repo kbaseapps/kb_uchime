@@ -23,6 +23,16 @@ RUN curl -L https://github.com/torognes/vsearch/releases/download/v2.3.0/vsearch
 RUN rm -rf vsearch-2.3.0-linux-x86_64
 RUN rm vsearch-2.3.0-linux-x86_64.tar.gz
 
+WORKDIR /kb/module/dependencies/bin
+RUN curl -L http://drive5.com/uchime/uchime4.2.40_src.tar.gz -o uchime4.2.40_src.tar.gz && \
+    tar xvf uchime4.2.40_src.tar.gz && \
+    cd uchime4.2.40_src && \
+    make && \
+    cd .. && \
+    mv uchime4.2.40_src/uchime  .
+RUN rm -rf uchime4.2.40_src
+RUN rm uchime4.2.40_src.tar.gz
+
 # -----------------------------------------
 
 COPY ./ /kb/module
