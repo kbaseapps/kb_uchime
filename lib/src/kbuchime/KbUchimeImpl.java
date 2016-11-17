@@ -27,7 +27,8 @@ import com.fasterxml.jackson.databind.*;
 import static java.lang.ProcessBuilder.Redirect;
 
 /**
-   This class runs UCHIME (in VSEARCH) against a single read library
+   This class runs UCHIME (in public domain version of UCHIME, or the
+   re-implemented version in VSEARCH) against a single read library
    or set of reads
 */
 public class KbUchimeImpl {
@@ -98,6 +99,9 @@ public class KbUchimeImpl {
         if (readsRef.indexOf("/") == -1)
             readsRef = input.getWs()+"/"+readsRef;
 
+        // use old UCHIME, or VSEARCH version?
+        boolean oldUCHIME = input.getProgramName().equals("UCHIME");
+
         // figure out what type of reads we have
         String readsType = lookupWsType(wc, readsRef);
         System.out.println("Reads type is "+readsType);
@@ -129,7 +133,7 @@ public class KbUchimeImpl {
         }
 
         // start generating report
-        String reportText = "";
+        String reportText = "Filtering out chimeric reads using "+(oldUCHIME ? "public domain UCHIME 4.2.40" : "UCHIME implementation in VSEARCH 2.3.0");
         List<WorkspaceObject> objects = new ArrayList<WorkspaceObject>();
         List<String> warnings = null;
 
@@ -139,7 +143,7 @@ public class KbUchimeImpl {
             String readsName = readsNames.get(i);
             String outputReadsName = outputReadsNames.get(i);
 
-            reportText += "Running UCHIME on "+readsName+" ("+readsRef+")\n";
+            reportText += "Filtering out chimeric reads in "+readsName+" ("+readsRef+")\n";
 
             // download reads
             DownloadReadsOutput dro = ruc.downloadReads(new DownloadReadsParams()
@@ -169,25 +173,77 @@ public class KbUchimeImpl {
                 }
 
                 // write outputs to temp files
-                java.io.File outputFileFA = java.io.File.createTempFile("reads", ".fa", tempDir);
-                java.io.File outputFileHead = java.io.File.createTempFile("reads", ".txt", tempDir);
+                java.io.File inputFileFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
+                java.io.File inputFileFA = java.io.File.createTempFile("reads", ".fa", tempDir);
+                java.io.File outputFile = java.io.File.createTempFile("output", ".txt", tempDir);
+                java.io.File outputFileIDs = java.io.File.createTempFile("ids", ".txt", tempDir);
                 java.io.File outputFileFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
                 java.io.File outputFileLog = java.io.File.createTempFile("log", ".txt", tempDir);
-                outputFileFA.delete();
-                outputFileHead.delete();
+                inputFileFQ.delete();
+                inputFileFA.delete();
+                outputFile.delete();
+                outputFileIDs.delete();
                 outputFileFQ.delete();
                 outputFileLog.delete();
 
+                // see if any abundance data are already present
+                ProcessBuilder pb = new ProcessBuilder("/bin/grep",
+                                                       "-qE",
+                                                       "';size=[[:digit:]]+;'",
+                                                       fwdPath);
+                int exitValue = pb.start().waitFor();
+                boolean hasAbundanceData = (exitValue==0);
+
+                // if no abundance data, make them
+                if (hasAbundanceData) {
+                    reportText += "\nAbundance data found.\n";
+                    inputFileFQ = new File(fwdPath);
+                }
+                else {
+                    reportText += "\nAbundance data not found; de-replicating and counting unique sequences using VSEARCH.\n";
+                    pb = new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
+                                            "--derep_fulllength",
+                                            fwdPath,
+                                            "--sizeout",
+                                            "--output",
+                                            inputFileFQ.getPath());
+                    pb.redirectErrorStream(true);
+                    pb.redirectOutput(Redirect.to(outputFileLog));
+                    // grab output into report
+                    List<String> lines = Files.readAllLines(Paths.get(outputFileLog.getPath()), Charset.defaultCharset());
+                    for (String line : lines)
+                        reportText += line+"\n";
+                }
+
                 // run UCHIME
-                ProcessBuilder pb =
-                    new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
-                                       "--uchime_denovo",
-                                       fwdPath,
-                                       "--nonchimeras",
-                                       outputFileFA.getPath());
-                pb.redirectErrorStream(true);
-                pb.redirectOutput(Redirect.to(outputFileLog));
-                pb.start().waitFor();
+                if (oldUCHIME) {
+                    // run old version of UCHIME
+                    
+                    // first, convert to FASTA and convert header size format
+                    pb = new ProcessBuilder("/bin/sh",
+                                            "-c",
+                                            "/usr/bin/seqtk seq -A "+inputFileFQ.getPath()+" | sed -e 's/;size=\\([[:digit:]]\\+\\);/\\/ab=\\1\\//'");
+                    pb.redirectOutput(Redirect.to(inputFileFA));
+                    pb.start().waitFor();
+
+                    // then actually run uchime
+                    pb = new ProcessBuilder("/kb/module/dependencies/bin/uchime",
+                                            "--input",
+                                            inputFileFA.getPath(),
+                                            "--uchime_out",
+                                            outputFile.getPath());
+                }
+                else {
+                    // run VSEARCH version
+                    pb = new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
+                                            "--uchime_denovo",
+                                            inputFileFQ.getPath(),
+                                            "--nonchimeras",
+                                            outputFile.getPath());
+                    pb.redirectErrorStream(true);
+                    pb.redirectOutput(Redirect.to(outputFileLog));
+                    pb.start().waitFor();
+                }
 
                 // grab output into report
                 List<String> lines = Files.readAllLines(Paths.get(outputFileLog.getPath()), Charset.defaultCharset());
@@ -205,18 +261,29 @@ public class KbUchimeImpl {
                     warnings.add("ERROR: UCHIME did not generate any output.");
                 }
                 else {
-                    // get headers from fasta file
-                    pb = new ProcessBuilder("/bin/sh",
-                                            "-c",
-                                            "grep -e '^>' "+outputFileFA.getPath()+" | cut -c 2-");
-                    pb.redirectOutput(Redirect.to(outputFileHead));
-                    pb.start().waitFor();
+                    if (oldUCHIME) {
+                        // get ids of nonchimeric seqs from tab file
+                        pb = new ProcessBuilder("/usr/bin/perl",
+                                                "-ane",
+                                                
+                        pb.redirectOutput(Redirect.to(outputFileIDs));
+                        pb.start().waitFor();
+                    
+                    }
+                    else {
+                        // get ids of nonchimeric seqs from fasta file
+                        pb = new ProcessBuilder("/bin/sh",
+                                                "-c",
+                                                "/bin/grep -e '^>' "+outputFile.getPath()+" | /usr/bin/cut -c 2-");
+                        pb.redirectOutput(Redirect.to(outputFileIDs));
+                        pb.start().waitFor();
+                    }
 
                     // extract subset of original fastq file
-                    pb = new ProcessBuilder("seqtk",
+                    pb = new ProcessBuilder("/usr/bin/seqtk",
                                             "subseq",
                                             fwdPath,
-                                            outputFileHead.getPath());
+                                            outputFileIDs.getPath());
                     pb.redirectOutput(Redirect.to(outputFileFQ));
                     pb.start().waitFor();
                     
@@ -236,14 +303,16 @@ public class KbUchimeImpl {
                                                             .withName(outputReadsName));
                     objects.add(new WorkspaceObject()
                                 .withRef(uro.getObjRef())
-                                .withDescription("UCHIME-filtered reads"));
+                                .withDescription("Chimera-filtered reads"));
                 }
 
                 // clean up
                 f = new java.io.File(fwdPath);
                 f.delete();
-                outputFileFA.delete();
-                outputFileHead.delete();
+                inputFileFA.delete();
+                inputFileFQ.delete();
+                outputFile.delete();
+                outputFileIDs.delete();
                 outputFileFQ.delete();
                 outputFileLog.delete();
                 
