@@ -173,13 +173,15 @@ public class KbUchimeImpl {
                 }
 
                 // write outputs to temp files
-                java.io.File inputFileFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
+                java.io.File inputFileDerep = java.io.File.createTempFile("reads", ".fastq", tempDir);
+                java.io.File inputFileDerepFA = java.io.File.createTempFile("reads", ".fa", tempDir);
                 java.io.File inputFileFA = java.io.File.createTempFile("reads", ".fa", tempDir);
                 java.io.File outputFile = java.io.File.createTempFile("output", ".txt", tempDir);
                 java.io.File outputFileIDs = java.io.File.createTempFile("ids", ".txt", tempDir);
                 java.io.File outputFileFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
                 java.io.File outputFileLog = java.io.File.createTempFile("log", ".txt", tempDir);
-                inputFileFQ.delete();
+                inputFileDerep.delete();
+                inputFileDerepFA.delete();
                 inputFileFA.delete();
                 outputFile.delete();
                 outputFileIDs.delete();
@@ -197,7 +199,7 @@ public class KbUchimeImpl {
                 // if no abundance data, make them
                 if (hasAbundanceData) {
                     reportText += "\nAbundance data found.\n";
-                    inputFileFQ = new File(fwdPath);
+                    inputFileDerep = new java.io.File(fwdPath);
                 }
                 else {
                     reportText += "\nAbundance data not found; de-replicating and counting unique sequences using VSEARCH.\n";
@@ -206,13 +208,69 @@ public class KbUchimeImpl {
                                             fwdPath,
                                             "--sizeout",
                                             "--output",
-                                            inputFileFQ.getPath());
+                                            inputFileDerepFA.getPath());
                     pb.redirectErrorStream(true);
                     pb.redirectOutput(Redirect.to(outputFileLog));
+                    pb.start().waitFor();
+
+                    long fileSize = outputFileLog.length();
+                    if (fileSize == 0L) {
+                        reportText += "\nERROR: Failed to dereplicate and count unique sequences.\n";
+                        if (warnings == null)
+                            warnings = new ArrayList<String>();
+                        warnings.add("ERROR: Failed to dereplicate and count unque sequences.");
+                    }
+
                     // grab output into report
                     List<String> lines = Files.readAllLines(Paths.get(outputFileLog.getPath()), Charset.defaultCharset());
                     for (String line : lines)
                         reportText += line+"\n";
+
+                    // put dereplicated data back in FQ
+                    // build table of ids and sequences
+                    pb = new ProcessBuilder("/bin/sh",
+                                            "-c",
+                                            "/bin/grep -e '^>' "+outputFile.getPath()+" | /usr/bin/cut -c 2- | sed -e 's/;size=\\([[:digit:]]\\+\\);/\t\\1/'");
+                    pb.redirectOutput(Redirect.to(outputFileIDs));
+                    pb.start().waitFor();
+
+                    // load in counts
+                    HashMap<String,Integer> counts = new HashMap<String,Integer>();
+                    BufferedReader infile = IO.openReader(outputFileIDs.getPath());
+                    String buffer = null;
+                    while ((buffer = infile.readLine()) != null) {
+                        String[] f = buffer.split("\t");
+                        counts.put(f[0],new Integer(StringUtil.atoi(f[1])));
+                    }
+                    infile.close();
+
+                    // add counts to FQ file
+                    infile = openReader(fwdPath);
+                    Printf outfile = new printfWriter(inputFileDerep.getPath());
+                    while ((buffer = infile.readLine()) != null) {
+                        header = buffer.substring(1);
+                        Integer count = counts.get(header);
+                        if (count == null) {
+                            // skip this read
+                            buffer = infile.readLine();
+                            buffer = infile.readLine();
+                            buffer = infile.readLine();
+                        }
+                        else {
+                            // add count
+                            outfile.printf("%s",buffer);
+                            outfile.printf(";size=%d;\n",count.intValue());
+                            buffer = infile.readLine();
+                            outfile.printf("%s\n",buffer);
+                            buffer = infile.readLine();
+                            outfile.printf("%s\n",buffer);
+                            buffer = infile.readLine();
+                            outfile.printf("%s\n",buffer);
+                        }
+                    }
+                    infile.close();
+                    outfile.flush();
+                    outfile.close();
                 }
 
                 // run UCHIME
@@ -222,7 +280,7 @@ public class KbUchimeImpl {
                     // first, convert to FASTA and convert header size format
                     pb = new ProcessBuilder("/bin/sh",
                                             "-c",
-                                            "/usr/bin/seqtk seq -A "+inputFileFQ.getPath()+" | sed -e 's/;size=\\([[:digit:]]\\+\\);/\\/ab=\\1\\//'");
+                                            "/usr/bin/seqtk seq -A "+inputFile.getPath()+" | sed -e 's/;size=\\([[:digit:]]\\+\\);/\\/ab=\\1\\//'");
                     pb.redirectOutput(Redirect.to(inputFileFA));
                     pb.start().waitFor();
 
@@ -230,14 +288,17 @@ public class KbUchimeImpl {
                     pb = new ProcessBuilder("/kb/module/dependencies/bin/uchime",
                                             "--input",
                                             inputFileFA.getPath(),
-                                            "--uchime_out",
+                                            "--uchimeout",
                                             outputFile.getPath());
+                    pb.redirectErrorStream(true);
+                    pb.redirectOutput(Redirect.to(outputFileLog));
+                    pb.start().waitFor();
                 }
                 else {
                     // run VSEARCH version
                     pb = new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
                                             "--uchime_denovo",
-                                            inputFileFQ.getPath(),
+                                            inputFileFA.getPath(),
                                             "--nonchimeras",
                                             outputFile.getPath());
                     pb.redirectErrorStream(true);
@@ -253,7 +314,7 @@ public class KbUchimeImpl {
                 }
 
                 // check that output actually generated
-                long fileSize = outputFileFA.length();
+                long fileSize = outputFile.length();
                 if (fileSize == 0L) {
                     reportText += "\nERROR: UCHIME did not generate any output.\n";
                     if (warnings == null)
@@ -263,26 +324,27 @@ public class KbUchimeImpl {
                 else {
                     if (oldUCHIME) {
                         // get ids of nonchimeric seqs from tab file
+                        // and convert to original count format
                         pb = new ProcessBuilder("/usr/bin/perl",
                                                 "-ane",
-                                                
+                                                "$F[1]=~s/\\/ab=(\\d+)\\//;size=\\1;/; print \"$F[1]\n\" if ($F[16] eq \"N\")");
+                        pb.redirectInput(Redirect.from(outputFile));
                         pb.redirectOutput(Redirect.to(outputFileIDs));
                         pb.start().waitFor();
-                    
                     }
                     else {
                         // get ids of nonchimeric seqs from fasta file
                         pb = new ProcessBuilder("/bin/sh",
                                                 "-c",
-                                                "/bin/grep -e '^>' "+outputFile.getPath()+" | /usr/bin/cut -c 2-");
+                                                "/bin/grep -e '^>' "+outputFile.getPath()+" | /usr/bin/cut -c 2- | sed -e 's/;size=\\([[:digit:]]\\+\\);/\/ab=\\1\//'");
                         pb.redirectOutput(Redirect.to(outputFileIDs));
                         pb.start().waitFor();
                     }
 
-                    // extract subset of original fastq file
+                    // extract subset of dereplicated fastq file
                     pb = new ProcessBuilder("/usr/bin/seqtk",
                                             "subseq",
-                                            fwdPath,
+                                            inputFileDerep.getPath(),
                                             outputFileIDs.getPath());
                     pb.redirectOutput(Redirect.to(outputFileFQ));
                     pb.start().waitFor();
@@ -309,8 +371,9 @@ public class KbUchimeImpl {
                 // clean up
                 f = new java.io.File(fwdPath);
                 f.delete();
+                inputFileDerep.delete();
+                inputFileDerepFA.delete();
                 inputFileFA.delete();
-                inputFileFQ.delete();
                 outputFile.delete();
                 outputFileIDs.delete();
                 outputFileFQ.delete();

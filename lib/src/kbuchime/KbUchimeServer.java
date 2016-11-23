@@ -35,7 +35,7 @@ public class KbUchimeServer extends JsonServerServlet {
     private static final long serialVersionUID = 1L;
     private static final String version = "0.0.1";
     private static final String gitUrl = "git@github.com:kbaseapps/kb_uchime.git";
-    private static final String gitCommitHash = "8aa19650ca38648aa376eb6a7142b61b77e3bf08";
+    private static final String gitCommitHash = "27fbc414d633312ec544eb1d7a7626adafa5f7d8";
 
     //BEGIN_CLASS_HEADER
     private final String wsUrl;
