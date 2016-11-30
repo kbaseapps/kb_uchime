@@ -22,6 +22,9 @@ import setapi.*;
 import kbasereport.*;
 import readsutils.*;
 
+import org.strbio.IO;
+import org.strbio.io.*;
+import org.strbio.util.*;
 import com.fasterxml.jackson.databind.*;
 
 import static java.lang.ProcessBuilder.Redirect;
@@ -150,11 +153,10 @@ public class KbUchimeImpl {
                                                         .withReadLibraries(Arrays.asList(readsRef)));
             for (DownloadedReadLibrary drl : dro.getFiles().values()) {
                 ReadsFiles rf = drl.getFiles();
-                java.io.File f;
                 String fwdPath = rf.getFwd();
                 String revPath = rf.getRev();
                 if (fwdPath != null) {
-                    f = new java.io.File(fwdPath);
+                    java.io.File f = new java.io.File(fwdPath);
                     if ((f==null) || (f.length() == 0L)) {
                         reportText += "\nERROR: "+readsName+" did not load correctly or may have no reads\n";
                         if (warnings == null)
@@ -168,7 +170,7 @@ public class KbUchimeImpl {
                     if (warnings == null)
                         warnings = new ArrayList<String>();
                     warnings.add("WARNING: UCHIME doesn't work on paired end reads; they must be merged first.");
-                    f = new java.io.File(revPath);
+                    java.io.File f = new java.io.File(revPath);
                     f.delete();
                 }
 
@@ -178,6 +180,7 @@ public class KbUchimeImpl {
                 java.io.File inputFileFA = java.io.File.createTempFile("reads", ".fa", tempDir);
                 java.io.File outputFile = java.io.File.createTempFile("output", ".txt", tempDir);
                 java.io.File outputFileIDs = java.io.File.createTempFile("ids", ".txt", tempDir);
+                java.io.File outputFileDerepFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
                 java.io.File outputFileFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
                 java.io.File outputFileLog = java.io.File.createTempFile("log", ".txt", tempDir);
                 inputFileDerep.delete();
@@ -185,6 +188,7 @@ public class KbUchimeImpl {
                 inputFileFA.delete();
                 outputFile.delete();
                 outputFileIDs.delete();
+                outputFileDerepFQ.delete();
                 outputFileFQ.delete();
                 outputFileLog.delete();
 
@@ -245,10 +249,10 @@ public class KbUchimeImpl {
                     infile.close();
 
                     // add counts to FQ file
-                    infile = openReader(fwdPath);
-                    Printf outfile = new printfWriter(inputFileDerep.getPath());
+                    infile = IO.openReader(fwdPath);
+                    PrintfWriter outfile = new PrintfWriter(inputFileDerep.getPath());
                     while ((buffer = infile.readLine()) != null) {
-                        header = buffer.substring(1);
+                        String header = buffer.substring(1);
                         Integer count = counts.get(header);
                         if (count == null) {
                             // skip this read
@@ -276,14 +280,13 @@ public class KbUchimeImpl {
                 // run UCHIME
                 if (oldUCHIME) {
                     // run old version of UCHIME
-                    
                     // first, convert to FASTA and convert header size format
                     pb = new ProcessBuilder("/bin/sh",
                                             "-c",
-                                            "/usr/bin/seqtk seq -A "+inputFile.getPath()+" | sed -e 's/;size=\\([[:digit:]]\\+\\);/\\/ab=\\1\\//'");
+                                            "/usr/bin/seqtk seq -A "+inputFileDerep.getPath()+" | sed -e 's/;size=\\([[:digit:]]\\+\\);/\\/ab=\\1\\//'");
                     pb.redirectOutput(Redirect.to(inputFileFA));
                     pb.start().waitFor();
-
+                    
                     // then actually run uchime
                     pb = new ProcessBuilder("/kb/module/dependencies/bin/uchime",
                                             "--input",
@@ -298,7 +301,7 @@ public class KbUchimeImpl {
                     // run VSEARCH version
                     pb = new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
                                             "--uchime_denovo",
-                                            inputFileFA.getPath(),
+                                            inputFileDerep.getPath(),
                                             "--nonchimeras",
                                             outputFile.getPath());
                     pb.redirectErrorStream(true);
@@ -336,7 +339,7 @@ public class KbUchimeImpl {
                         // get ids of nonchimeric seqs from fasta file
                         pb = new ProcessBuilder("/bin/sh",
                                                 "-c",
-                                                "/bin/grep -e '^>' "+outputFile.getPath()+" | /usr/bin/cut -c 2- | sed -e 's/;size=\\([[:digit:]]\\+\\);/\/ab=\\1\//'");
+                                                "/bin/grep -e '^>' "+outputFile.getPath()+" | /usr/bin/cut -c 2-"); // | sed -e 's/;size=\\([[:digit:]]\\+\\);/\/ab=\\1\//'");
                         pb.redirectOutput(Redirect.to(outputFileIDs));
                         pb.start().waitFor();
                     }
@@ -346,10 +349,40 @@ public class KbUchimeImpl {
                                             "subseq",
                                             inputFileDerep.getPath(),
                                             outputFileIDs.getPath());
+                    pb.redirectOutput(Redirect.to(outputFileDerepFQ));
+                    pb.start().waitFor();
+
+                    // convert input to FA, for search
+                    pb = new ProcessBuilder("/usr/bin/seqtk",
+                                            "seq",
+                                            "-A",
+                                            fwdPath);
+                    pb.redirectOutput(Redirect.to(inputFileFA));
+                    pb.start().waitFor();
+
+                    // extract all sequences in original fastq file that match
+                    pb = new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
+                                            "--search_exact",
+                                            outputFileDerepFQ.getPath(),
+                                            "--db",
+                                            inputFileFA.getPath(),
+                                            "--dbmask",
+                                            "none",
+                                            "--userfields",
+                                            "target",
+                                            "--userout",
+                                            outputFileIDs.getPath());
+                    pb.start().waitFor();
+
+                    // and convert back to FQ again
+                    pb = new ProcessBuilder("/usr/bin/seqtk",
+                                            "subseq",
+                                            fwdPath,
+                                            outputFileIDs.getPath());
                     pb.redirectOutput(Redirect.to(outputFileFQ));
                     pb.start().waitFor();
                     
-                    // save the output 
+                    // save the output
 
                     // hack to fix missing sequencing tech,
                     // which is now mandatory but missing in some existing objects
@@ -369,7 +402,7 @@ public class KbUchimeImpl {
                 }
 
                 // clean up
-                f = new java.io.File(fwdPath);
+                java.io.File f = new java.io.File(fwdPath);
                 f.delete();
                 inputFileDerep.delete();
                 inputFileDerepFA.delete();
