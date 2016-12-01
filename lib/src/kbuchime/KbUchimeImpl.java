@@ -407,6 +407,7 @@ public class KbUchimeImpl {
                 inputFileFA.delete();
                 outputFile.delete();
                 outputFileIDs.delete();
+                outputFileDerep.delete();
                 outputFileFQ.delete();
                 outputFileLog.delete();
                 
