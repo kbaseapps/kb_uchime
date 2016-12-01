@@ -74,8 +74,8 @@ public class KbUchimeServerTest {
         }
     }
     
-    @Test
-    public void testRunOldUchime() throws Exception {
+    //@Test
+        public void testRunOldUchime() throws Exception {
         RunUchimeInput input = new RunUchimeInput()
             .withWs("jmc:1477003527922")
             .withInputReadsRef("12554/46/1")
@@ -90,12 +90,28 @@ public class KbUchimeServerTest {
         System.out.println(report.getTextMessage());
     }
 
-    @Test
+    //    @Test
     public void testRunVSearchUchime() throws Exception {
         RunUchimeInput input = new RunUchimeInput()
             .withWs("jmc:1477003527922")
             .withInputReadsRef("12554/46/1")
             .withOutputReadsName("GBVT06H_vsearch_uchime_filtered")
+            .withProgramName("VSEARCH");
+        RunUchimeOutput rv = impl.runUchime(input, token, (RpcContext)null);
+        Assert.assertNotNull(rv);
+        String reportRef = rv.getReportRef();
+        Assert.assertNotNull(reportRef);
+        Report report = wsClient.getObjects(Arrays.asList(new ObjectIdentity().withRef(reportRef))).get(0).getData().asClassInstance(us.kbase.kbasereport.Report.class);
+        Assert.assertNotNull(report);
+        System.out.println(report.getTextMessage());
+    }
+
+    @Test
+    public void testRunVSearchSet() throws Exception {
+        RunUchimeInput input = new RunUchimeInput()
+            .withWs("jmc:1477003527922")
+            .withInputReadsRef("14068/12/3")
+            .withOutputReadsName("set_filtered")
             .withProgramName("VSEARCH");
         RunUchimeOutput rv = impl.runUchime(input, token, (RpcContext)null);
         Assert.assertNotNull(rv);

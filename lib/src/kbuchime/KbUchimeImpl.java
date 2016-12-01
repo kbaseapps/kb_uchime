@@ -106,6 +106,8 @@ public class KbUchimeImpl {
         // figure out what type of reads we have
         String readsType = lookupWsType(wc, readsRef);
         System.out.println("Reads type is "+readsType);
+        System.out.println("WS url is "+wsURL);
+        System.out.println("Service wizard URL is "+serviceWizardURL);
 
         // list of reads to work on        
         ArrayList<String> readsRefs = new ArrayList<String>();
@@ -119,7 +121,7 @@ public class KbUchimeImpl {
         ReadsSet outputReadsSet = null;
         
         // if a set, get list of members
-        if (readsType.equals("KBaseSets.ReadsSet")) {
+        if (readsType.startsWith("KBaseSets.ReadsSet")) {
             SetAPIClient sc = new SetAPIClient(new URL(serviceWizardURL),token);
             sc.setIsInsecureHttpConnectionAllowed(true);
             
@@ -151,7 +153,7 @@ public class KbUchimeImpl {
             String readsName = readsNames.get(i);
             String outputReadsName = outputReadsNames.get(i);
 
-            reportText += "Filtering out chimeric reads in "+readsName+" ("+readsRef+")\n";
+            reportText += "\nFiltering out chimeric reads in "+readsName+" ("+readsRef+")\n";
 
             // download reads
             DownloadReadsOutput dro = ruc.downloadReads(new DownloadReadsParams()

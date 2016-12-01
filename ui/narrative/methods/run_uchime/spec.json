@@ -43,7 +43,7 @@
                 "options": [
                     {
                         "value": "VSEARCH",
-                        "display": "VSEARCH implementation of UCHIME"
+                        "display": "VSEARCH implementation of UCHIME algorithm"
                     },
                     {
                         "value": "UCHIME",

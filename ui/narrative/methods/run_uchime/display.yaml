@@ -47,7 +47,7 @@ parameters :
 		short-hint : |
 			Implementation of UCHIME to use; can be either public domain UCHIME or VSEARCH
 		long-hint : |
-			Implementation of UCHIME to use; can be	either public domain version of UCHIME (version 4.2.40) or the reimplemented version in VSEARCH (version 2.3.0)
+			Implementation of UCHIME to use; can be	either public domain version of UCHIME (version 4.2.40) or the faster reimplemented version of the UCHIME algorithm in VSEARCH (version 2.3.0)
 
 description : |
 	<p>This is a Narrative Method for running <a href="http://drive5.com/usearch/manual/uchime_algo.html">UCHIME</a>.
@@ -58,7 +58,7 @@ description : |
 	 <br>
 	 UCHIME does not recognize paired reads, so you will need to merge paired reads before running chimera detection.  This method works on single end reads or a read set.
 	 <br>
-	 In both programs, we run the <i>de novo</i> chimera detection algorithm.  This requires that your reads file include abundance data, which must be given by a string ;size=xxx; somewhere in the label.  If this string is not present, your reads will be de-replicated and the abundance of each sequence calculated for you.
+	 In both programs, we run the <i>de novo</i> chimera detection algorithm.  This requires that your reads file include abundance data, which must be given by a string ;size=xxx; somewhere in the label.  If this string is not present, your reads will first be dereplicated and the abundance of each sequence calculated for you.
 
 publications :
     -

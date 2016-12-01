@@ -46,7 +46,11 @@ public class KbUchimeServer extends JsonServerServlet {
         super("kb_uchime");
         //BEGIN_CONSTRUCTOR
         wsUrl = config.get("workspace-url");
-        serviceWizardUrl = config.get("service-wizard-url");
+        String x = config.get("service-wizard-url");
+        if ((x==null) || (!x.startsWith("http")))
+            serviceWizardUrl = "https://ci.kbase.us/services/service_wizard";
+        else
+            serviceWizardUrl = x;
         //END_CONSTRUCTOR
     }
 
