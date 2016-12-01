@@ -114,17 +114,24 @@ public class KbUchimeImpl {
         // and output names
         ArrayList<String> outputReadsNames = new ArrayList<String>();
 
+        // if doing a set, this object will store the output
+        // if only one, it will stay null
+        ReadsSet outputReadsSet = null;
+        
         // if a set, get list of members
         if (readsType.equals("KBaseSets.ReadsSet")) {
             SetAPIClient sc = new SetAPIClient(new URL(serviceWizardURL),token);
             sc.setIsInsecureHttpConnectionAllowed(true);
             
             GetReadsSetV1Result readSetObj = sc.getReadsSetV1(new GetReadsSetV1Params().withRef(readsRef).withIncludeItemInfo(1L));
-            for (ReadsSetItem rsi : readSetObj.getData().getItems()) {
+            ReadsSet inputReadsSet = readSetObj.getData();
+            for (ReadsSetItem rsi : inputReadsSet.getItems()) {
                 readsRefs.add(rsi.getRef());
                 readsNames.add(rsi.getInfo().getE2());
                 outputReadsNames.add(rsi.getInfo().getE2()+"_uchime");
             }
+            ArrayList<ReadsSetItem> outputReadsSetItems = new ArrayList<ReadsSetItem>();
+            outputReadsSet = new ReadsSet().withDescription(inputReadsSet.getDescription()+" chimera-filtered reads").withItems(outputReadsSetItems);
         }
         else {
             // process a single reads object, not a set
@@ -397,6 +404,11 @@ public class KbUchimeImpl {
                     objects.add(new WorkspaceObject()
                                 .withRef(uro.getObjRef())
                                 .withDescription("Chimera-filtered reads"));
+
+                    // add to output set, if input was a reads set
+                    if (outputReadsSet != null) {
+                        outputReadsSet.getItems().add(new ReadsSetItem().withRef(uro.getObjRef()).withLabel(outputReadsName));
+                    }
                 }
 
                 // clean up
@@ -413,9 +425,17 @@ public class KbUchimeImpl {
                 
                 reportText += "Done with "+readsName+".\n\n";
             }
-            
         }
 
+        // save output reads set, if input was also a set
+        if (outputReadsSet != null) {
+            SetAPIClient sc = new SetAPIClient(new URL(serviceWizardURL),token);
+            sc.setIsInsecureHttpConnectionAllowed(true);
+            SaveReadsSetV1Result srs = sc.saveReadsSetV1(new SaveReadsSetV1Params().withWorkspace(input.getWs()).withOutputObjectName(input.getOutputReadsName()).withData(outputReadsSet));
+            objects.add(new WorkspaceObject()
+                        .withRef(srs.getSetRef())
+                        .withDescription("Chimera-filtered reads set"));
+        }
         
         String[] report = makeReport(token,
                                      input.getWs(),
