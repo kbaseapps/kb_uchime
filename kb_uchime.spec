@@ -5,7 +5,7 @@ A KBase module: kb_uchime
 module kb_uchime {
     typedef structure {
 	string ws;
-	string input_reads_name; /* may be ReadSet or SingleEndLibrary */
+	string input_reads_ref; /* may be ReadSet or SingleEndLibrary */
 	string output_reads_name;
 	string program_name; /* must be UCHIME or VSEARCH */
     } RunUchimeInput;

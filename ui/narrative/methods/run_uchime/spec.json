@@ -13,7 +13,7 @@
     },
     "parameters": [
 	{
-	    "id": "input_reads_name",
+	    "id": "input_reads_ref",
 	    "optional": false,
 	    "advanced": false,
 	    "allow_multiple": false,
@@ -64,8 +64,9 @@
 		    "target_property": "ws"
 		},
 		{
-		    "input_parameter": "input_reads_name",
-		    "target_property": "input_reads_name"
+		    "input_parameter": "input_reads_ref",
+		    "target_property": "input_reads_ref",
+		    "target_type_transform": "resolved-ref"
 		},
 		{
 		    "input_parameter": "output_reads_name",

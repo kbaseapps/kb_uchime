@@ -98,9 +98,7 @@ public class KbUchimeImpl {
         ReadsUtilsClient ruc = new ReadsUtilsClient(new URL(System.getenv("SDK_CALLBACK_URL")),token);
         ruc.setIsInsecureHttpConnectionAllowed(true);
 
-        String readsRef = input.getInputReadsName();
-        if (readsRef.indexOf("/") == -1)
-            readsRef = input.getWs()+"/"+readsRef;
+        String readsRef = input.getInputReadsRef();
 
         // use old UCHIME, or VSEARCH version?
         boolean oldUCHIME = input.getProgramName().equals("UCHIME");
@@ -131,7 +129,7 @@ public class KbUchimeImpl {
         else {
             // process a single reads object, not a set
             readsRefs.add(readsRef);
-            readsNames.add(input.getInputReadsName());
+            readsNames.add(readsRef);
             outputReadsNames.add(input.getOutputReadsName());
         }
 
@@ -180,7 +178,7 @@ public class KbUchimeImpl {
                 java.io.File inputFileFA = java.io.File.createTempFile("reads", ".fa", tempDir);
                 java.io.File outputFile = java.io.File.createTempFile("output", ".txt", tempDir);
                 java.io.File outputFileIDs = java.io.File.createTempFile("ids", ".txt", tempDir);
-                java.io.File outputFileDerepFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
+                java.io.File outputFileDerep = java.io.File.createTempFile("reads", ".txt", tempDir);
                 java.io.File outputFileFQ = java.io.File.createTempFile("reads", ".fastq", tempDir);
                 java.io.File outputFileLog = java.io.File.createTempFile("log", ".txt", tempDir);
                 inputFileDerep.delete();
@@ -188,7 +186,7 @@ public class KbUchimeImpl {
                 inputFileFA.delete();
                 outputFile.delete();
                 outputFileIDs.delete();
-                outputFileDerepFQ.delete();
+                outputFileDerep.delete();
                 outputFileFQ.delete();
                 outputFileLog.delete();
 
@@ -234,7 +232,7 @@ public class KbUchimeImpl {
                     // build table of ids and sequences
                     pb = new ProcessBuilder("/bin/sh",
                                             "-c",
-                                            "/bin/grep -e '^>' "+outputFile.getPath()+" | /usr/bin/cut -c 2- | sed -e 's/;size=\\([[:digit:]]\\+\\);/\t\\1/'");
+                                            "/bin/grep -e '^>' "+inputFileDerepFA.getPath()+" | /usr/bin/cut -c 2- | sed -e 's/;size=\\([[:digit:]]\\+\\);/\t\\1/'");
                     pb.redirectOutput(Redirect.to(outputFileIDs));
                     pb.start().waitFor();
 
@@ -347,9 +345,9 @@ public class KbUchimeImpl {
                     // extract subset of dereplicated fastq file
                     pb = new ProcessBuilder("/usr/bin/seqtk",
                                             "subseq",
-                                            inputFileDerep.getPath(),
+                                            inputFileDerepFA.getPath(),
                                             outputFileIDs.getPath());
-                    pb.redirectOutput(Redirect.to(outputFileDerepFQ));
+                    pb.redirectOutput(Redirect.to(outputFileDerep));
                     pb.start().waitFor();
 
                     // convert input to FA, for search
@@ -363,7 +361,7 @@ public class KbUchimeImpl {
                     // extract all sequences in original fastq file that match
                     pb = new ProcessBuilder("/kb/module/dependencies/bin/vsearch",
                                             "--search_exact",
-                                            outputFileDerepFQ.getPath(),
+                                            outputFileDerep.getPath(),
                                             "--db",
                                             inputFileFA.getPath(),
                                             "--dbmask",

@@ -78,7 +78,7 @@ public class KbUchimeServerTest {
     public void testRunOldUchime() throws Exception {
         RunUchimeInput input = new RunUchimeInput()
             .withWs("jmc:1477003527922")
-            .withInputReadsName("GBVT06H_sample")
+            .withInputReadsRef("12554/46/1")
             .withOutputReadsName("GBVT06H_old_uchime_filtered")
             .withProgramName("UCHIME");
         RunUchimeOutput rv = impl.runUchime(input, token, (RpcContext)null);
@@ -94,7 +94,7 @@ public class KbUchimeServerTest {
     public void testRunVSearchUchime() throws Exception {
         RunUchimeInput input = new RunUchimeInput()
             .withWs("jmc:1477003527922")
-            .withInputReadsName("GBVT06H_sample")
+            .withInputReadsRef("12554/46/1")
             .withOutputReadsName("GBVT06H_vsearch_uchime_filtered")
             .withProgramName("VSEARCH");
         RunUchimeOutput rv = impl.runUchime(input, token, (RpcContext)null);

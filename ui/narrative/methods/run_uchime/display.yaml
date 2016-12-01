@@ -6,7 +6,7 @@ tooltip: |
 	Remove chimeric reads with UCHIME.
 screenshots: []
 
-icon: uchime-orange.png
+icon: uchime-pink.png
 
 #
 # define a set of similar methods that might be useful to the user
@@ -27,7 +27,7 @@ suggestions:
 # Configure the display and description of parameters
 #
 parameters :
-	input_reads_name :
+	input_reads_ref :
 		ui-name : |
 			Read library (or Set) object
 		short-hint : |
