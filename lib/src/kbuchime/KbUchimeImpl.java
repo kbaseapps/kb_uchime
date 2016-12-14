@@ -119,7 +119,12 @@ public class KbUchimeImpl {
         // if doing a set, this object will store the output
         // if only one, it will stay null
         ReadsSet outputReadsSet = null;
-        
+
+        // start generating report
+        String reportText = "Filtering out chimeric reads using "+(oldUCHIME ? "public domain UCHIME 4.2.40" : "UCHIME implementation in VSEARCH 2.3.0");
+        List<WorkspaceObject> objects = new ArrayList<WorkspaceObject>();
+        List<String> warnings = null;
+
         // if a set, get list of members
         if (readsType.startsWith("KBaseSets.ReadsSet")) {
             SetAPIClient sc = new SetAPIClient(new URL(serviceWizardURL),token);
@@ -128,12 +133,25 @@ public class KbUchimeImpl {
             GetReadsSetV1Result readSetObj = sc.getReadsSetV1(new GetReadsSetV1Params().withRef(readsRef).withIncludeItemInfo(1L));
             ReadsSet inputReadsSet = readSetObj.getData();
             for (ReadsSetItem rsi : inputReadsSet.getItems()) {
-                readsRefs.add(rsi.getRef());
-                readsNames.add(rsi.getInfo().getE2());
-                outputReadsNames.add(rsi.getInfo().getE2()+"_uchime");
+                // check type
+                readsType = rsi.getInfo().getE3();
+                String readsName = rsi.getInfo().getE2();
+                if (readsType.indexOf("Paired") > -1) {
+                    reportText += "\nWARNING: UCHIME doesn't work on paired end reads; "+readsName+" must be merged first.  Skipping.\n";
+                    if (warnings == null)
+                        warnings = new ArrayList<String>();
+                    warnings.add("WARNING: UCHIME doesn't work on paired end reads; "+readsName+" must be merged first.  Skipping.");
+                }
+                else {
+                    readsRefs.add(rsi.getRef());
+                    readsNames.add(readsName);
+                    outputReadsNames.add(readsName+"_uchime");
+                }
             }
-            ArrayList<ReadsSetItem> outputReadsSetItems = new ArrayList<ReadsSetItem>();
-            outputReadsSet = new ReadsSet().withDescription(inputReadsSet.getDescription()+" chimera-filtered reads").withItems(outputReadsSetItems);
+            if (readsRefs.size() > 0) {
+                ArrayList<ReadsSetItem> outputReadsSetItems = new ArrayList<ReadsSetItem>();
+                outputReadsSet = new ReadsSet().withDescription(inputReadsSet.getDescription()+" chimera-filtered reads").withItems(outputReadsSetItems);
+            }
         }
         else {
             // process a single reads object, not a set
@@ -142,10 +160,13 @@ public class KbUchimeImpl {
             outputReadsNames.add(input.getOutputReadsName());
         }
 
-        // start generating report
-        String reportText = "Filtering out chimeric reads using "+(oldUCHIME ? "public domain UCHIME 4.2.40" : "UCHIME implementation in VSEARCH 2.3.0");
-        List<WorkspaceObject> objects = new ArrayList<WorkspaceObject>();
-        List<String> warnings = null;
+        // check that we have at least one read
+        if (readsRefs.size()==0) {
+            reportText += "\nERROR: no valid (single end or merged) reads found\n";
+            if (warnings == null)
+                warnings = new ArrayList<String>();
+            warnings.add("ERROR: no valid (single end or merged) reads found");
+        }
 
         // run UCHIME on each library
         for (int i=0; i<readsRefs.size(); i++) {
